@@ -5,13 +5,14 @@ class NN:
     #Initialize a neural network
     def __init__(self, layers, init_method):
         self.params = {}
+        #self.init_functions = {"fc": "fc_initialize"}
         self.L = len(layers)
 
         for i in range(L):
                     #Write an init_method that will initialize parameters
-                    self.params[f'W{i}'] = initialize(layers, "W", init_method)
-                    self.params[f'b{i}'] = initialize(layers, "b", init_method)
-                    self.params[f'p{i}'] = initialize(layers, "p", init_method)
+                    self.params[f'W{i}'] = eval(layers[i][0] + f'_initialize({layers[i], "W", init_method})')
+                    self.params[f'b{i}'] = eval(layers[i][0] + f'_initialize({layers[i], "b", init_method})')
+                    self.params[f'ext{i}'] = eval(layers[i][0] + f'_initialize({layers[i], "p", init_method})')
 
     #Define forward method for each layer type
 
@@ -30,7 +31,22 @@ class NN:
 
     def conv_forward(self, X, kernel):
 
-        pass
+        padded = np.pad(image, ((0, 0), (padding, padding), (padding, padding)), 'constant')
+        if len(kernel.shape) > 2:
+            C = kernel.shape[0]
+            if (image.shape[0] != C):
+                return "Input channels error"
+        Kx, Ky = kernel.shape[1:]
+        Ix, Iy = image.shape[1:]
+
+        outX = 2 * padding + Ix - Kx + 1
+        outY = 2 * padding + Iy - Ky + 1
+        output = np.zeros((C, outX, outY))
+
+        for i in range(outX):
+            for j in range(outY):
+                for c in range(C):
+                    output[c, i, j] = (padded[c, i:i + Kx, j:j + Ky] * kernel[c]).sum()
 
     def conv_backward(self, out, dstream, cache):
 
@@ -61,6 +77,8 @@ class NN:
         xg = gamma * xmu
         out = xg + beta
         cache = (eps, mu, xmu, sq, var, rt, inv, mul, xg)
+
+
     def batchnorm_backward(self, out, dout, cache):
 
         (eps, mu, xmu, sq, var, rt, inv, mul, xg) = cache
@@ -82,7 +100,6 @@ class NN:
         dx = dx1 + dx2
 
         return (dbeta, dxg, dgamma, dmul, dinv, dxmu1, drt, dvar, dsq, dxmu2, dxmu, dx1, dmu, dx2, dx)
-
 
 
 
@@ -120,22 +137,3 @@ class NN:
         dX = dstream * ds
 
         return dX
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
