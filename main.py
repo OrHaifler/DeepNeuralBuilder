@@ -101,6 +101,59 @@ class NN:
 
         return (dbeta, dxg, dgamma, dmul, dinv, dxmu1, drt, dvar, dsq, dxmu2, dxmu, dx1, dmu, dx2, dx)
 
+    def max_pooling_forward(self, X, spatial=2, stride=2):
+
+        C, Xw, Xh = X.shape
+        Ow = (Xw - spatial)/stride + 1
+        Oh = (Xh - spatial)/stride + 1
+        args = []
+        out = np.zeros((int(Ow), int(Oh)))
+        for i in range(0, Xw - spatial + 1, stride):
+            for j in range(0, Xh - spatial + 1, stride):
+                submatrix = X[i:i + spatial, j:j + spatial]
+                out[int(i/stride),int(j/stride)] = submatrix.max()
+                argmax_submatrix = np.unravel_index(np.argmax(submatrix), submatrix.shape)
+                args.append((argmax_submatrix[0] + i, argmax_submatrix[1] + j, i, j))
+        return out
+
+
+    def max_pooling_backward(self, dout, cache):
+
+        X, args = cache
+        dX = np.zeros(X.shape)
+        for i in range(X.shape[0]):
+            for j in range(X.shape[1]):
+                if (i,j) in args:
+                    dX[i,j] = X[i,j]
+
+
+    def average_pooling_forward(self, X, spatial=2, stride=2):
+
+        C, Xw, Xh = X.shape
+        Ow = (Xw - spatial)/stride + 1
+        Oh = (Xh - spatial)/stride + 1
+        args = []
+        out = np.zeros((C, int(Ow), int(Oh)))
+        for i in range(0, Xw - spatial + 1, stride):
+            for j in range(0, Xh - spatial + 1, stride):
+                for c in range(C):
+                    out[c,int(i/stride),int(j/stride)] = X[c,i:i + spatial, j:j + spatial].mean()
+
+        return out
+
+    def average_pooling_backward(self, dout, cache):
+
+        X = cache
+        dX = np.zeros(X.shape)
+
+        for c in range(X.shape[0]):
+            for i in range(0, Xw - spatial + 1, stride):
+                for j in range(0, Xh - spatial + 1, stride):
+                    dX[c, i:i + spatial, j:j+spatial] = out[c, int(i/stride), int(j/stride)]
+        dX *= 1/N
+        return dX
+
+
 
 
     def relu_forward(self, X):
@@ -137,3 +190,23 @@ class NN:
         dX = dstream * ds
 
         return dX
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
