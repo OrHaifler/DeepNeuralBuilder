@@ -15,15 +15,15 @@ def initialize(layer):
 def random_uniform_initialize(dim, a=0, b=1):
 
     out = ((b - a) * np.random.rand(*dim) + np.full(dim, a), (b - a) *
-           np.random.rand(1,dim[1]) + np.full((1,dim[1]), a))
+           np.random.rand(1,dim[-1]) + np.full((1,dim[-1]), a))
     return out
 
 def random_normal_initialize(dim, scale=1):
-    out = (np.random.randn(*dim) * scale, np.random.randn(1, dim[1]) * scale)
+    out = (np.random.randn(*dim) * scale, np.random.randn(1, dim[-1]) * scale)
     return out
 
 def constant_initialize(dim, constant=0):
-    out = (np.full(dim, constant), np.full((1, dim[1]), constant))
+    out = (np.full(dim, constant), np.full((1, dim[-1]), constant))
     return out
 
 def xavier_initialize(dims):
