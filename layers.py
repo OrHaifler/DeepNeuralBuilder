@@ -1,10 +1,15 @@
+import numpy as np
+
 def fc_forward(X, W, b):
+
     out = X.dot(W) + b
-    return out
+    cache = (X, W, b)
+    return out, cache
 
 
 def fc_backward(out, dstream, cache):  # cache = (X,W,b)
 
+    X, W, b = cache
     dW = (X.T).dot(dstream)
     dX = dstream.dot(W.T)
     db = dstream.sum(axis=0)
@@ -29,6 +34,7 @@ def conv_forward(X, kernel):
         for j in range(outY):
             for c in range(C):
                 output[c, i, j] = (padded[c, i:i + Kx, j:j + Ky] * kernel[c]).sum()
+    return output, cache
 
 
 def conv_backward(out, dstream, cache):
@@ -49,7 +55,7 @@ def dropout_backward(out, dstream, cache):  # cache = (X, mask)
     return dstream
 
 
-def bachnorm_forward(X, gamma, beta, eps=1e5):
+def batchnorm_forward(X, gamma, beta, eps=1e5):
     mu = X.mean(axis=0)
     xmu = X - mu
     sq = xmu ** 2
@@ -133,13 +139,17 @@ def average_pooling_backward(dout, cache):
     dX *= 1 / N
     return dX
 
-def softmax(X, y):
+def softmax_forward(X, y):
 
     N = X.shape[0]
     Xn = X - X.max(axis = 1).reshape(N,1)
     axis_sum = (np.exp(Xn)).sum(axis = 1)
     out = np.exp(Xn[arange(N), y]) / axis_sum
     return out
+
+def softmax_backward():
+
+    pass
 
 
 def relu_forward(X):
