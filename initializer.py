@@ -6,8 +6,8 @@ def initialize(layer):
     dim = layer['dim']
     ext = layer['ext']
     init_function = f'{init}_initialize'
-    W, b = eval(init_function + f'{dim, *ext}')
-    return W, b
+    params = eval(init_function + f'{dim, *ext}')
+    return params
 
 
 
