@@ -1,6 +1,8 @@
 import numpy as np
 from sklearn.utils import shuffle
 from functions_utils import non_linearities
+
+
 def gradient_descent(NN, X: np.ndarray, y: np.ndarray, loss_method: str, lr=1e-3, epochs=1000):
 
     N = X.shape[0]
