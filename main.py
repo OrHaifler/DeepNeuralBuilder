@@ -1,105 +1,133 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+from optimizer import *
 from initializer import initialize
 from layers import *
 from functions_utils import *
 from loss import *
+from matplotlib.animation import FuncAnimation
+from sklearn.datasets import make_blobs
+from pandas import DataFrame
 
 
 class Layer:
-
-    def __init__(self, layer):
+    def __init__(self, layer, dropout=0):
+        self.dropout = dropout
         self.weights = {}
-        self.weights['W'], self.weights['b'] = initialize(layer)
+        if layer['type'] not in non_linearities:
+            self.weights['W'], self.weights['b'] = initialize(layer)
         self.forward, self.backward = function_utils[layer['type']]
+        self.type = layer['type']
 
-class NN:
-    #Initialize a neural network
+
+
+class NeuralNetwork:
     def __init__(self, layer_array):
-        self.types = ['fc', 'conv', 'dropout', 'batchnorm', 'max_pooling',
+        self.types = ['fc', 'conv', 'batchnorm', 'max_pooling',
                       'average_pooling', 'softmax', 'relu', 'sigmoid', 'tanh']
         self.L = len(layer_array)
-        self.layers = []
-        for i in range(self.L):
-            self.layers.append(Layer(layer_array[i]))
+        self.layers = [Layer(layer_array[i]) for i in range(self.L)]
         self.caches = {}
         self.grads = {}
+        self.loss = 0
 
-
-    def single_forward(self, X: np.ndarray, layer: Layer) -> (np.ndarray, tuple):
-
-        out, cache = layer.forward(X, layer.weights['W'], layer.weights['b'])
-        return out, cache
-
-    def forward(self, X, y, loss_method):
-
+    def forward(self, X: np.ndarray, y: np.ndarray, loss_method: str) -> (np.ndarray, float):
         out = X
         for i in range(self.L):
-            out, self.caches[i] = self.single_forward(out, self.layers[i])
+            layer = self.layers[i]
+            if layer.type in non_linearities:
+                out, self.caches[i] = layer.forward(out)
+            else:
+                out, self.caches[i] = layer.forward(out, layer.weights['W'], layer.weights['b'], layer.dropout)
         return loss_method(out, y)
+
+    def backward(self, X: np.ndarray, y: np.ndarray, loss_method: str):
+
+        self.loss, self.grads[self.L] = self.forward(X, y, loss_method)
+        self.grads[self.L] = [self.grads[self.L]]
+        for l in range(self.L - 1, -1, -1):
+            if self.layers[l].type in non_linearities:
+                self.grads[l] = self.layers[l].backward(self.grads[l + 1][0], self.caches[l])
+                continue
+            self.grads[l] = self.layers[l].backward(self.loss, self.grads[l + 1][0], self.caches[l])
+        Z = self.predict_arr(np.c_[xx.ravel(), yy.ravel()])
+        Z = Z.reshape(xx.shape)
+
+        df = DataFrame(dict(x=T[:, 0], y=T[:, 1], label=R))
+        colors = {0: 'blue', 1: 'orange'}
+        fig, ax = plt.subplots()
+        grouped = df.groupby('label')
+        for key, group in grouped:
+            group.plot(ax=ax, kind='scatter', x='x', y='y', label=key, color=colors[key])
+
+        # Plot the decision boundary
+        plt.contourf(xx, yy, Z, alpha=0.3, cmap=plt.cm.RdBu)
+
+        # Label the axes
+        plt.xlabel('X_1')
+        plt.ylabel('X_2')
+
+        # Show the plot
+        plt.show()
 
     def predict(self, X):
 
         out = X
         for i in range(self.L):
-            out, self.caches[i] = self.single_forward(out, self.layers[i])
-        return out
+            layer = self.layers[i]
+            if layer.type in non_linearities:
+                out, _ = layer.forward(out)
+            else:
+                out, _ = layer.forward(out, layer.weights['W'], layer.weights['b'], layer.dropout)
+        return out[0].argmax()
 
 
+    def predict_arr(self, X):
 
-    def train(self, X, y, loss_method, lr=1e-3, clipping_threshold=10000,  epochs=100000):
+        pred = np.zeros(X.shape[0])
+        for l in range(len(X)):
+            pred[l] = self.predict(X[l])
+        return pred
+
+    def train(self, X, y, loss_method, lr=1e-3, clipping_threshold=10000, epochs=1000):
 
         N = X.shape[0]
         self.history = []
-
-        for epoch in range(epochs):
-
-            loss, self.grads[self.L] = self.forward(X, y, loss_method)
-            self.grads[self.L] = [self.grads[self.L]]
-            for l in range(self.L - 1, -1, -1):
-                self.grads[l] = fc_backward(loss, self.grads[l + 1][0], self.caches[l])
-                dX, dW, db = self.grads[l]
-                dW_norm, db_norm = np.linalg.norm(dW), np.linalg.norm(db)
-                if dW_norm > clipping_threshold:
-                    dW *= clipping_threshold / dW_norm
-                if db_norm > clipping_threshold:
-                    db *= clipping_threshold / db_norm
-                self.layers[l].weights['W'] -= lr * dW / N
-                self.layers[l].weights['b'] -= lr * db / N
-            if epoch % 1000 == 0:
-                self.history.append(loss)
-                print(epoch, loss)
-                print("--------------")
-        plt.plot(self.history)
-        plt.show()
+        stochastic_gradient_descent(self, X, y, loss_method, lr, epochs)
 
 
 
 
 
-#Test example
-X = np.random.randint(0, 10, size=(50,4))
-y = X.sum(axis = 1)
-layers_arr = [{'type': 'fc', 'dim': (4,64), 'ext': (1, ), 'init_method': 'random_normal'},
-            {'type': 'fc', 'dim': (64,32), 'ext': (1, ), 'init_method': 'random_normal'},
-              {'type': 'fc', 'dim': (32,1), 'ext': (1, ), 'init_method': 'random_normal'}]
-Network = NN(layers_arr)
-Network.train(X, y, MSE, epochs=10000)
-print(Network.predict(np.array([1, 5, 20, 3])))
+# Test example
 
 
+#X = np.random.randint(0, 10, size=(50, 4)).astype(float)
+#y = X.sum(axis = 1)
 
 
-'''dX2, dW2, db2 = fc_backward(loss, dloss, self.caches[1])
-dX1, dW1, db1 = fc_backward(loss, dX2, self.caches[0])
-self.layers[1].weights['W'] -= lr * dW2 / X.shape[0]
-self.layers[1].weights['b'] -= lr * db2 / X.shape[0]
-self.layers[0].weights['W'] -= lr * dW1 / X.shape[0]
-self.layers[0].weights['b'] -= lr * db1 / X.shape[0]
-self.history.append((epoch, loss))
-if epoch % 1000 == 0:
-    print(epoch, loss)
-    print("--------------")'''
+X, y = make_blobs(n_samples=300, centers=2, n_features=2, cluster_std=5, random_state=11)
+T, R = X, y
+df = DataFrame(dict(x=X[:,0], y=X[:,1], label=y))
+colors = {0:'blue', 1:'orange'}
+fig, ax = plt.subplots()
+grouped = df.groupby('label')
+
+for key, group in grouped:
+    group.plot(ax=ax, kind='scatter', x='x', y='y', label=key, color=colors[key])
+
+plt.xlabel('X_1')
+plt.ylabel('X_2')
+plt.show()
+
+layers_arr = [{'type': 'fc', 'dim': (2, 4), 'ext': (1, ), 'init_method': 'random_normal', 'dropout': 0},
+              {'type': 'fc', 'dim': (4, 2), 'ext': (1, ), 'init_method': 'random_normal', 'dropout': 0},
+              {'type': 'sigmoid', 'dim': None, 'ext': (1, ), 'init_method': None, 'dropout': 0}]
+xx, yy = np.meshgrid(np.linspace(X[:, 0].min() - 1, X[:, 0].max() + 1, 100),
+                     np.linspace(X[:, 1].min() - 1, X[:, 1].max() + 1, 100))
+Network = NeuralNetwork(layers_arr)
+Network.train(X, y, binary_crossentropy, epochs=1000)
 
 
 
@@ -107,3 +135,19 @@ if epoch % 1000 == 0:
 
 
 
+'''np.random.seed(25)
+class1_mean, class1_cov = [2,2], [[1, 0.5], [0.5, 1]]
+class2_mean, class2_cov = [6,6], [[1, -0.5], [-0.5, 1]]
+class1_data = np.random.multivariate_normal(class1_mean, class1_cov, 25)
+class2_data = np.random.multivariate_normal(class2_mean, class2_cov, 25)
+#class1_data = np.array([[1,3], [2,4], [4,5]])
+#class2_data = np.array([[6,7], [7,6], [8,5]])
+plt.scatter(class1_data[:, 0], class1_data[:, 1], c='b', label='Class 1')
+plt.scatter(class2_data[:, 0], class2_data[:, 1], c='r', label='Class 2')
+plt.xlabel('Feature 1')
+plt.ylabel('Feature 2')
+plt.legend(loc='best')
+plt.show()
+
+X = np.concatenate((class1_data, class2_data), axis = 0)
+y = np.concatenate((np.zeros((25)), np.ones((25))), axis = 0).astype(int)'''
