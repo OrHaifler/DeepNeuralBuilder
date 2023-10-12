@@ -23,7 +23,7 @@ def random_normal_initialize(dim, scale=1):
     return out
 
 def constant_initialize(dim, constant=0):
-    out = (np.full(dim, constant), np.full((1, dim[-1]), constant))
+    out = (np.full(dim, constant).astype(float), np.full((1, dim[-1]), constant).astype(float))
     return out
 
 def xavier_initialize(dims):
@@ -33,4 +33,5 @@ def xavier_initialize(dims):
 def he_initialize(dims):
 
     pass
+
 
