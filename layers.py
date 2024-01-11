@@ -1,7 +1,6 @@
 import numpy as np
 
-def fc_forward(X, W, b , p=0):
-    #V
+def fc_forward(X, W, b, p=0):
     mask = np.random.rand(*X.shape) < 1 - p
     X *= mask
     out = X.dot(W) + b
@@ -9,18 +8,14 @@ def fc_forward(X, W, b , p=0):
     cache = (X, W, b, mask)
     return out, cache
 
-
-def fc_backward(out, dstream, cache):  # cache = (X,W,b, mask)
-    #V
+def fc_backward(out, dstream, cache):
     X, W, b, mask = cache
     dX = (dstream).dot(W.T) * mask
     dW = (X.T).dot(dstream)
     db = dstream.sum(axis=0)
+    return dX, dW, db
 
-    return (dX, dW, db)
-
-
-def conv_forward(X, kernel):
+def conv_forward(image, kernel, padding=0):
     padded = np.pad(image, ((0, 0), (padding, padding), (padding, padding)), 'constant')
     if len(kernel.shape) > 2:
         C = kernel.shape[0]
@@ -39,25 +34,18 @@ def conv_forward(X, kernel):
                 output[c, i, j] = (padded[c, i:i + Kx, j:j + Ky] * kernel[c]).sum()
     return output, cache
 
-
 def conv_backward(out, dstream, cache):
     pass
 
-
-# Remember scaling to maintain expectation
 def dropout_forward(X, p):
-    #V
     mask = np.random.rand(*X.shape) < 1 - p
     out = X * mask
     return out, mask
 
-
-def dropout_backward(out, dstream, cache):  # cache = (X, mask)
-    #V
+def dropout_backward(out, dstream, cache):
     mask = cache[1]
     dstream *= mask
     return dstream
-
 
 def batchnorm_forward(X, gamma, beta, eps=1e-5):
     mu = X.mean(axis=0)
@@ -70,7 +58,6 @@ def batchnorm_forward(X, gamma, beta, eps=1e-5):
     xg = gamma * xmu
     out = xg + beta
     cache = (eps, mu, xmu, sq, var, rt, inv, mul, xg)
-
 
 def batchnorm_backward(out, dout, cache):
     (eps, mu, xmu, sq, var, rt, inv, mul, xg) = cache
@@ -86,13 +73,12 @@ def batchnorm_backward(out, dout, cache):
     dsq = np.ones(out.shape) * 1 / N * dvar
     dxmu2 = 2 * dsq * xmu
     dxmu = dxmu1 + dxmu2
-    dx1 = dxmu  # dx1 = np.ones(out.shape) * dxmu = dxmu
+    dx1 = dxmu
     dmu = -1 * dxmu.sum(axis=0)
     dx2 = 1 / N * np.ones(out.shape) * dmu
     dx = dx1 + dx2
 
     return (dbeta, dxg, dgamma, dmul, dinv, dxmu1, drt, dvar, dsq, dxmu2, dxmu, dx1, dmu, dx2, dx)
-
 
 def max_pooling_forward(X, spatial=2, stride=2):
     C, Xw, Xh = X.shape
@@ -108,7 +94,6 @@ def max_pooling_forward(X, spatial=2, stride=2):
             args.append((argmax_submatrix[0] + i, argmax_submatrix[1] + j, i, j))
     return out
 
-
 def max_pooling_backward(dout, cache):
     X, args = cache
     dX = np.zeros(X.shape)
@@ -116,7 +101,6 @@ def max_pooling_backward(dout, cache):
         for j in range(X.shape[1]):
             if (i, j) in args:
                 dX[i, j] = X[i, j]
-
 
 def average_pooling_forward(X, spatial=2, stride=2):
     C, Xw, Xh = X.shape
@@ -131,7 +115,6 @@ def average_pooling_forward(X, spatial=2, stride=2):
 
     return out
 
-
 def average_pooling_backward(dout, cache):
     X = cache
     dX = np.zeros(X.shape)
@@ -144,65 +127,51 @@ def average_pooling_backward(dout, cache):
     return dX
 
 def ID_forward(X1, X2=None):
-
     return X1
 
 def ID_backward(X1, X2=None):
-
     return X1
-def softmax_forward(X, y):
 
+def softmax_forward(X, y):
     N = X.shape[0]
-    Xn = X - X.max(axis = 1).reshape(N,1)
-    axis_sum = (np.exp(Xn)).sum(axis = 1)
+    Xn = X - X.max(axis=1).reshape(N, 1)
+    axis_sum = (np.exp(Xn)).sum(axis=1)
     out = np.exp(Xn[arange(N), y]) / axis_sum
     return out
 
 def softmax_backward():
-
     pass
-
 
 def relu_forward(X):
     out = np.maximum(X, 0)
     cache = X
     return out, cache
 
-
-def relu_backward(dstream, cache):  # cache = (X)
-
+def relu_backward(dstream, cache):
     X = cache
-    dstream *= np.heaviside(X, 0)  # np.ones(X.shape) * (X > 0).astype(int)
+    dstream *= np.heaviside(X, 0)
     return [dstream]
 
-
 def sigmoid_forward(X):
+    out = 1 / (1 + np.exp(-X
 
-    out = 1 / (1 + np.exp(-X))
+))
     cache = X, out
     return out, cache
 
-
-def sigmoid_backward(dstream, cache):  # cache = (X, out)
-
+def sigmoid_backward(dstream, cache):
     X, out = cache
     ds = out * (1 - out)
     dX = dstream * ds
-
     return [dX]
 
-
 def tanh_forward(X):
-
     out = (np.exp(X) - np.exp(-X)) / (np.exp(X) + np.exp(-X))
     cache = X, out
     return out, cache
 
-
-def tanh_backward(dstream, cache):  # cache = (X)
-
+def tanh_backward(dstream, cache):
     X, out = cache
     ds = 1 - out ** 2
     dX = dstream * ds
-
     return [dX]
